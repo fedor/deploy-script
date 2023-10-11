@@ -1,0 +1,21 @@
+#!/bin/bash
+echo -e "RUN ON REMOTE $(uname -a)\n$(whoami)@$(pwd)"
+
+TARGET_SOCKET_STATUS=$(systemctl --user is-enabled $TARGET_SYSTEMD_SOCKET)
+TARGET_SERVICE_STATUS=$(systemctl --user is-enabled $TARGET_SYSTEMD_SERVICE)
+
+if [[ $TARGET_SOCKET_STATUS != 'enabled' ]] || [[ $TARGET_SERVICE_STATUS != 'enabled' ]]
+then
+	systemctl --user daemon-reload
+	systemctl --user enable $TARGET_SYSTEMD_SOCKET
+	systemctl --user enable $TARGET_SYSTEMD_SERVICE
+	systemctl --user start  $TARGET_SYSTEMD_SOCKET
+fi
+
+# Restart service. It also would be automaticaslly restarted via socket upon the call
+systemctl --user stop   $TARGET_SYSTEMD_SERVICE
+systemctl --user start  $TARGET_SYSTEMD_SERVICE
+
+# Print systemd socket/service status
+systemctl --user status $TARGET_SYSTEMD_SOCKET
+systemctl --user status $TARGET_SYSTEMD_SERVICE $TARGET_SYSTEMD_SOCKET

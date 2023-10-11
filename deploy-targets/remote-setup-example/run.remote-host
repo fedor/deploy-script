@@ -1,0 +1,66 @@
+#!/bin/bash
+source ./env 2> /dev/null
+TARGET_SSH_PATH=/home/$TARGET_USER/.ssh
+TARGET_SYSTEMD_PATH=/home/$TARGET_USER/.config/systemd/user
+
+echo -e "RUN ON REMOTE $(uname -a)\n$(whoami)@$(pwd)"
+
+USER=$(whoami)
+if [[ "$USER" != "root" && "$USER" != "$TARGET_USER" ]]
+then
+	echo "Re-run the script as root..."
+	sudo -S ./run
+fi
+
+# TODO: Install/update software by root
+
+
+# Add new user for target service
+adduser -gecos "" --disabled-password $TARGET_USER  2> /dev/null
+
+# Setup access to remote host over SSH
+mkdir $TARGET_SSH_PATH                              2> /dev/null
+cp authorized_keys $TARGET_SSH_PATH
+chown -R $TARGET_USER:$TARGET_USER $TARGET_SSH_PATH
+chmod -R 700 $TARGET_SSH_PATH
+chmod -R 600 $TARGET_SSH_PATH/authorized_keys
+
+####################
+# Copy systemd service and socket configs
+mkdir -p $TARGET_SYSTEMD_PATH
+cp ./$TARGET_SYSTEMD_SERVICE $TARGET_SYSTEMD_PATH
+cp ./$TARGET_SYSTEMD_SOCKET  $TARGET_SYSTEMD_PATH
+chown -R $TARGET_USER:$TARGET_USER /home/$TARGET_USER/.config
+
+# This is required to start/run systemd service/socket of $TARGET_USER even they are not logged in
+loginctl enable-linger $TARGET_USER
+
+# Ask systemd to (re)load new socket and service configurations
+set -e
+systemctl --user --machine=$TARGET_USER@ daemon-reload
+su - $TARGET_USER bash -c "\
+	wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash;
+	source ~/.bashrc;
+	export NVM_DIR=\"\$HOME/.nvm\";
+	[ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"  # This loads nvm
+	nvm install $NODEJS_VERSION
+"
+set +e
+
+# Disable systemd socket and service (if any)
+systemctl --user --machine=$TARGET_USER@ disable $TARGET_SYSTEMD_SOCKET
+systemctl --user --machine=$TARGET_USER@ disable $TARGET_SYSTEMD_SERVICE
+
+# Stop running socket and service (if any)
+systemctl --user --machine=$TARGET_USER@ stop   $TARGET_SYSTEMD_SOCKET
+systemctl --user --machine=$TARGET_USER@ stop   $TARGET_SYSTEMD_SERVICE
+
+# Enable systemd socket and service
+systemctl --user --machine=$TARGET_USER@ enable $TARGET_SYSTEMD_SOCKET
+systemctl --user --machine=$TARGET_USER@ enable $TARGET_SYSTEMD_SERVICE
+
+# Start socket again to use the new config
+systemctl --user --machine=$TARGET_USER@ start  $TARGET_SYSTEMD_SOCKET
+
+# Print systemd socket/service status
+systemctl --user --machine=$TARGET_USER@ status $TARGET_SYSTEMD_SERVICE $TARGET_SYSTEMD_SOCKET

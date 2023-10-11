@@ -1,0 +1,67 @@
+#!/bin/bash
+# This script prepares files for remote hosts to perform deployment of a target app (remote hosts setup)
+#
+# The following steps are performed:
+# 1. Generate SSH key-pair on a build host (the machine + user running this script)
+# 2. Copy public key to build directory
+# 3. Generate a systemd socket config for the app
+# 4. Generate a systemd service config for the app
+# 5. Generate a file with shell environment variables for remote host setup script, it defines:
+#    - TARGET_USER
+#    - TARGET_SSH_PATH
+#    - NODEJS_VERSION         - Node.JS vesion required by the app
+#    - TARGET_SYSTEMD_PATH    - path for systemd config files
+#    - TARGET_SYSTEMD_SERVICE - systemd service config file name
+#    - TARGET_SYSTEMD_SOCKET  - systemd socket config file name
+#
+# Defined in deploy-config.$ENV:
+# - HTTP_PORT
+# - NODEJS_VERSION
+# - TARGET_SYSTEMD_SERVICE
+# - TARGET_SYSTEMD_SOCKET
+
+# STEP 1. Generate SSH key-pair on a build host (the machine + user running this script)
+mkdir ~/.ssh 2> /dev/null
+pushd ~/.ssh > /dev/null
+echo -e "\nn" | ssh-keygen -q -f 'id_rsa' -N '' > /dev/null
+popd > /dev/null
+
+# STEP 2. Copy public key to build directory
+cp ~/.ssh/id_rsa.pub authorized_keys
+
+# STEP 3. Generate a systemd socket config for the app
+cat > $TARGET_SYSTEMD_SOCKET <<- EOM
+[Unit]
+Description=Example app service socket (ENV: $ENV)
+
+[Socket]
+ListenStream=127.0.0.1:$HTTP_PORT
+
+[Install]
+WantedBy=sockets.target
+EOM
+
+# STEP 4. Generate a systemd service config for the app
+cat > $TARGET_SYSTEMD_SERVICE <<- EOM
+[Unit]
+Description=Example app description (ENV: $ENV)
+After=network.target
+Requires=$TARGET_SYSTEMD_SOCKET
+
+[Service]
+WorkingDirectory=/home/$TARGET_USER/deployments/$TARGET_APP/$ENV/active
+ExecStart=/home/$TARGET_USER/.nvm/versions/node/$NODEJS_VERSION/bin/node app-example.js --daemon
+Type=exec
+Restart=always
+
+[Install]
+WantedBy=default.target
+EOM
+
+# STEP 5. Generate a file with shell environment variables for remote host setup script
+cat > 'env' <<- EOM
+TARGET_USER=$TARGET_USER
+NODEJS_VERSION=$NODEJS_VERSION
+TARGET_SYSTEMD_SERVICE=$TARGET_SYSTEMD_SERVICE
+TARGET_SYSTEMD_SOCKET=$TARGET_SYSTEMD_SOCKET
+EOM

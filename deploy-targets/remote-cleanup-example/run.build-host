@@ -1,0 +1,8 @@
+#!/bin/bash
+# This script prepares env file with shell variables for remote hosts cleanup
+
+cat > 'env' <<- EOM
+TARGET_USER=$TARGET_USER
+TARGET_SYSTEMD_SERVICE=$TARGET_SYSTEMD_SERVICE
+TARGET_SYSTEMD_SOCKET=$TARGET_SYSTEMD_SOCKET
+EOM

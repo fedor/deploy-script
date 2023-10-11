@@ -1,0 +1,1 @@
+REMOTE_HOSTS="$TARGET_USER@prod1.host $TARGET_USER@prod2.host"

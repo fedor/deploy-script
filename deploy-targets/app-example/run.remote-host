@@ -1,6 +1,8 @@
 #!/bin/bash
 echo -e "RUN ON REMOTE $(uname -a)\n$(whoami)@$(pwd)"
 
+source ./env 2> /dev/null
+
 TARGET_SOCKET_STATUS=$(systemctl --user is-enabled $TARGET_SYSTEMD_SOCKET)
 TARGET_SERVICE_STATUS=$(systemctl --user is-enabled $TARGET_SYSTEMD_SERVICE)
 

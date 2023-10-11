@@ -49,6 +49,7 @@ then
 	git clone --quiet --depth 1 $GIT_REPO -b $GIT_BRANCH .
 	GIT_TIMESTAMP=$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%dT%H-%M-%SZ' --format="%cd")
 	GIT_HASH=$(git rev-parse --short HEAD)
+	rm -rf .git
 	popd > /dev/null
 	BUILD_NAME=$GIT_TIMESTAMP-$GIT_HASH
 	BUILD_HOST_BUILD_DIR=$BUILD_HOST_BASE_DIR/deploy-builds/$TARGET/$ENV/$BUILD_NAME

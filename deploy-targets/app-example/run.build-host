@@ -1,2 +1,9 @@
 #!/bin/bash
+# This script installs dependencies, + prepares env file with shell variables for remote hosts script
+
 npm ci
+
+cat > 'env' <<- EOM
+TARGET_SYSTEMD_SERVICE=$TARGET_SYSTEMD_SERVICE
+TARGET_SYSTEMD_SOCKET=$TARGET_SYSTEMD_SOCKET
+EOM

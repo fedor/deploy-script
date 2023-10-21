@@ -7,18 +7,18 @@
 # 3. Generate a systemd socket config for the app
 # 4. Generate a systemd service config for the app
 # 5. Generate a file with shell environment variables for remote host setup script, it defines:
-#    - TARGET_USER
+#    - APP_USER
 #    - TARGET_SSH_PATH
 #    - NODEJS_VERSION         - Node.JS vesion required by the app
 #    - TARGET_SYSTEMD_PATH    - path for systemd config files
-#    - TARGET_SYSTEMD_SERVICE - systemd service config file name
-#    - TARGET_SYSTEMD_SOCKET  - systemd socket config file name
+#    - SYSTEMD_SERVICE_APP - systemd service config file name
+#    - SYSTEMD_SOCKET_APP  - systemd socket config file name
 #
 # Defined in deploy-config.$ENV:
-# - HTTP_PORT
+# - PORT_APP
 # - NODEJS_VERSION
-# - TARGET_SYSTEMD_SERVICE
-# - TARGET_SYSTEMD_SOCKET
+# - SYSTEMD_SERVICE_APP
+# - SYSTEMD_SOCKET_APP
 
 # STEP 1. Generate SSH key-pair on a build host (the machine + user running this script)
 mkdir ~/.ssh 2> /dev/null
@@ -30,27 +30,27 @@ popd > /dev/null
 cp ~/.ssh/id_rsa.pub authorized_keys
 
 # STEP 3. Generate a systemd socket config for the app
-cat > $TARGET_SYSTEMD_SOCKET <<- EOM
+cat > $SYSTEMD_SOCKET_APP <<- EOM
 [Unit]
 Description=Example app service socket (ENV: $ENV)
 
 [Socket]
-ListenStream=127.0.0.1:$HTTP_PORT
+ListenStream=127.0.0.1:$PORT_APP
 
 [Install]
 WantedBy=sockets.target
 EOM
 
 # STEP 4. Generate a systemd service config for the app
-cat > $TARGET_SYSTEMD_SERVICE <<- EOM
+cat > $SYSTEMD_SERVICE_APP <<- EOM
 [Unit]
 Description=Example app description (ENV: $ENV)
 After=network.target
-Requires=$TARGET_SYSTEMD_SOCKET
+Requires=$SYSTEMD_SOCKET_APP
 
 [Service]
-WorkingDirectory=/home/$TARGET_USER/deployments/$TARGET_APP/$ENV/active
-ExecStart=/home/$TARGET_USER/.nvm/versions/node/$NODEJS_VERSION/bin/node app-example.js --daemon
+WorkingDirectory=/home/$APP_USER/deployments/$ENV/$APP/active
+ExecStart=/home/$APP_USER/.nvm/versions/node/$NODEJS_VERSION/bin/node app-example.js --daemon
 Type=exec
 Restart=always
 
@@ -60,8 +60,8 @@ EOM
 
 # STEP 5. Generate a file with shell environment variables for remote host setup script
 cat > 'env' <<- EOM
-TARGET_USER=$TARGET_USER
+APP_USER=$APP_USER
 NODEJS_VERSION=$NODEJS_VERSION
-TARGET_SYSTEMD_SERVICE=$TARGET_SYSTEMD_SERVICE
-TARGET_SYSTEMD_SOCKET=$TARGET_SYSTEMD_SOCKET
+SYSTEMD_SERVICE_APP=$SYSTEMD_SERVICE_APP
+SYSTEMD_SOCKET_APP=$SYSTEMD_SOCKET_APP
 EOM

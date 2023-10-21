@@ -1,0 +1,27 @@
+#!/bin/bash
+# This script prepares systemd service configuration to run $TARGET on remote hosts
+
+cat > .env <<- EOM
+POSTGRES_USER=$POSTGRES_USER
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+EOM
+
+DATA_PATH=/home/$APP_USER/data/$ENV/postgresql
+ENV_PATH=/home/$APP_USER/deployments/$ENV/$TARGET/active/.env
+
+cat > $SYSTEMD_SERVICE_POSTGRESQL <<- EOM
+[Unit]
+Description=%n
+After=docker.service
+Requires=docker.service
+
+[Service]
+ExecStartPre=-/usr/bin/docker exec %n stop
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStart=/usr/bin/docker run --rm --name %n --network=host --env-file $ENV_PATH -v $DATA_PATH:/var/lib/postgresql/data postgres:14-alpine -p $PORT_POSTGRESQL
+Type=exec
+Restart=always
+
+[Install]
+WantedBy=default.target
+EOM

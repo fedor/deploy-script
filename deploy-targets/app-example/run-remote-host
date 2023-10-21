@@ -1,0 +1,23 @@
+#!/bin/bash
+echo -e "RUN ON REMOTE $(uname -a)\n$(whoami)@$(pwd)"
+
+source ./env 2> /dev/null
+
+TARGET_SOCKET_STATUS=$(systemctl --user is-enabled $SYSTEMD_SOCKET_APP)
+TARGET_SERVICE_STATUS=$(systemctl --user is-enabled $SYSTEMD_SERVICE_APP)
+
+if [[ $TARGET_SOCKET_STATUS != 'enabled' ]] || [[ $TARGET_SERVICE_STATUS != 'enabled' ]]
+then
+	systemctl --user daemon-reload
+	systemctl --user enable $SYSTEMD_SOCKET_APP
+	systemctl --user enable $SYSTEMD_SERVICE_APP
+	systemctl --user start  $SYSTEMD_SOCKET_APP
+fi
+
+# Restart service. It also would be automaticaslly restarted via socket upon the call
+systemctl --user stop   $SYSTEMD_SERVICE_APP
+systemctl --user start  $SYSTEMD_SERVICE_APP
+
+# Print systemd socket/service status
+systemctl --user status $SYSTEMD_SOCKET_APP
+systemctl --user status $SYSTEMD_SERVICE_APP $SYSTEMD_SOCKET_APP

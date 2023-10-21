@@ -4,12 +4,13 @@
 # The following steps are performed:
 #
 # 1. Checkout files from GIT_REPO/GIT_BRANCH to builds/<TARGET>/<ENV>/<COMMIT DATE>-<COMMIT HASH>
+#    or create an empty directory if no GIT_REPO/GIT_BRANCH provided
 # 2. Copy target specific files to the build directory
-#    - env variable file:             deploy-targets/<TARGET>/env.<ENV>       --> .env
-#    - script to run on remote hosts: deploy-targets/<TARGET>/run.remote-host --> run
-# 3. Run run.build-host script (work dir is set to the build dir)
-# 4. Copy build directory to each remote host defined in deploy-targets/<TARGET>/remore-hosts.<ENV>
-# 5. Run run.remote-host script (work dir is set to the build dir copy on remote host)
+#    - env variable file:             deploy-targets/<TARGET>/env-remote-host.<ENV> --> .env
+#    - script to run on remote hosts: deploy-targets/<TARGET>/run-remote-host       --> run
+# 3. Run run-build-host script (work dir is set to the build dir)
+# 4. Copy build directory to each remote host defined in ${REMOTE_HOSTS[@]}
+# 5. Run run-remote-host script copy on each remote host (work dir is set to the build dir copy on remote host)
 # 6. Remove .env file from the build directory on the build host
 
 # Input validation
@@ -19,21 +20,31 @@ then
 	exit 1
 fi
 
+BUILD_HOST_BASE_DIR=$(realpath $(dirname "$0"))
+if [[ "$(ls $BUILD_HOST_BASE_DIR/deploy-targets | grep $TARGET)" != "$TARGET" ]]
+then
+	echo "$TARGET not found in deploy-targets" 1>&2
+	exit 1
+fi
+
 # Import deploy configuration
 #
 # Deploy configuraton defines GIT repository URI ($GIT_REPO) and GIT branch or tag ($GIT_BRANCH)
 # Environment and target based overwrites of deploy config could be used to specify environment
 # /target specific repository and/or branch or tag
-set -a # To automatically export deploy-config variables as we would need to reuse it in  
-source deploy-config                             2> /dev/null
-source deploy-config.$ENV                        2> /dev/null
-source deploy-targets/$TARGET/deploy-config      2> /dev/null
-source deploy-targets/$TARGET/deploy-config.$ENV 2> /dev/null
+set -a # To automatically export env-build-host variables as we would need to reuse it in  
+source $BUILD_HOST_BASE_DIR/deploy-targets/env-build-host                      2> /dev/null
+source $BUILD_HOST_BASE_DIR/deploy-targets/env-build-host-secrets              2> /dev/null
+source $BUILD_HOST_BASE_DIR/deploy-targets/env-build-host.$ENV                 2> /dev/null
+source $BUILD_HOST_BASE_DIR/deploy-targets/env-build-host-secrets.$ENV         2> /dev/null
+source $BUILD_HOST_BASE_DIR/deploy-targets/$TARGET/env-build-host              2> /dev/null
+source $BUILD_HOST_BASE_DIR/deploy-targets/$TARGET/env-build-host-secrets      2> /dev/null
+source $BUILD_HOST_BASE_DIR/deploy-targets/$TARGET/env-build-host.$ENV         2> /dev/null
+source $BUILD_HOST_BASE_DIR/deploy-targets/$TARGET/env-build-host-secrets.$ENV 2> /dev/null
 set +a
 
 echo " -- Preparing build" 1>&2
 
-BUILD_HOST_BASE_DIR=$(realpath $(dirname "$0"))
 if [[ "$GIT_REPO" != "" && "$GIT_BRANCH" != "" ]]
 then
 	# STEP 1. Checkout files from GIT_REPO/GIT_BRANCH to builds/<TARGET>/<ENV>/<COMMIT DATE>-<COMMIT HASH>
@@ -58,6 +69,7 @@ then
 	mv $BUILD_HOST_TEMP_BUILD_DIR $BUILD_HOST_BUILD_DIR
 	echo " -- -- checked out $GIT_REPO/$GIT_BRANCH to $BUILD_HOST_BUILD_RELATIVE_PATH"
 else
+	# STEP 1. Create enpty directory for the build builds/<TARGET>/<ENV>/<CURRENT TIMESTAMP>
 	BUILD_NAME=$(date --utc '+%Y-%m-%dT%H-%M-%SZ')
 	BUILD_HOST_BUILD_DIR=$BUILD_HOST_BASE_DIR/deploy-builds/$TARGET/$ENV/$BUILD_NAME
 	BUILD_HOST_BUILD_RELATIVE_PATH="./$(realpath --relative-to="$BUILD_HOST_BASE_DIR" $BUILD_HOST_BUILD_DIR)"
@@ -66,25 +78,25 @@ else
 fi
 
 # STEP 2. Copy target specific files to the build directory
-# - env variable file:                         deploy-targets/<TARGET>/env.<ENV>       --> .env
-# - script to run on remote hosts:             deploy-targets/<TARGET>/run.remote-host --> run
+# - env variable file:                         deploy-targets/<TARGET>/env-remote-host.<ENV>       --> .env
+# - script to run on remote hosts:             deploy-targets/<TARGET>/run-remote-host --> run
 BUILD_HOST_TARGET_INFO_DIR=$BUILD_HOST_BASE_DIR/deploy-targets/$TARGET
 
-cp $BUILD_HOST_TARGET_INFO_DIR/env.$ENV        $BUILD_HOST_BUILD_DIR/.env 2> /dev/null
-cp $BUILD_HOST_TARGET_INFO_DIR/run.remote-host $BUILD_HOST_BUILD_DIR/run
+cp $BUILD_HOST_TARGET_INFO_DIR/env-remote-host.$ENV $BUILD_HOST_BUILD_DIR/.env 2> /dev/null
+cp $BUILD_HOST_TARGET_INFO_DIR/run-remote-host      $BUILD_HOST_BUILD_DIR/run
+
+# STEP 3. Run run-build-host script (work dir is set to the build dir)
+pushd $BUILD_HOST_BUILD_DIR > /dev/null
+echo " -- -- running build script (run-build-host)" 1>&2
+$BUILD_HOST_TARGET_INFO_DIR/run-build-host
+popd > /dev/null
 chmod 600 $BUILD_HOST_BUILD_DIR/.env 2> /dev/null
 chmod 700 $BUILD_HOST_BUILD_DIR/run
-
-# STEP 3. Run run.build-host script (work dir is set to the build dir)
-pushd $BUILD_HOST_BUILD_DIR > /dev/null
-echo " -- -- running build script (run.build-host)" 1>&2
-$BUILD_HOST_TARGET_INFO_DIR/run.build-host
-popd > /dev/null
 echo " -- -- build is complete in $BUILD_HOST_BUILD_RELATIVE_PATH" 1>&2
 
-IFS=' ' read -ra REMOTE_HOSTS <<< "$REMOTE_HOSTS"
+# IFS=' ' read -ra REMOTE_HOSTS <<< "$REMOTE_HOSTS"
 echo -e "\n -- Deploying to ${REMOTE_HOSTS[*]}" 1>&2
-REMOTE_HOST_PARENT_BUILD_DIR="~/deployments/$TARGET/$ENV"
+REMOTE_HOST_PARENT_BUILD_DIR="~/deployments/$ENV/$TARGET"
 REMOTE_HOST_BUILD_DIR="$REMOTE_HOST_PARENT_BUILD_DIR/$BUILD_NAME"
 REMOTE_HOST_ACTIVE_BUILD_LINK="$REMOTE_HOST_PARENT_BUILD_DIR/active"
 for REMOTE_HOST in "${REMOTE_HOSTS[@]}"; do
@@ -95,7 +107,7 @@ for REMOTE_HOST in "${REMOTE_HOSTS[@]}"; do
 
 	echo " -- -- running deploy script on $REMOTE_HOST (run.remote-host)" 1>&2
 	# STEP 5. Move build from home directory to REMOTE_HOST_PARENT_BUILD_DIR
-	#         Run run.remote-host script (work dir is set to the build directory on remote host)
+	#         Run run-remote-host script copy on $REMOTE_HOST (work dir is set to the build dir copy on $REMOTE_HOST)
 	ssh $REMOTE_HOST "                                                                \
 		rm    -rf $REMOTE_HOST_BUILD_DIR                                2> /dev/null; \
 		mkdir -p  $REMOTE_HOST_PARENT_BUILD_DIR                         2> /dev/null; \
@@ -103,7 +115,7 @@ for REMOTE_HOST in "${REMOTE_HOSTS[@]}"; do
 		rm        $REMOTE_HOST_ACTIVE_BUILD_LINK                        2> /dev/null; \
 		ln -s     $REMOTE_HOST_BUILD_DIR $REMOTE_HOST_ACTIVE_BUILD_LINK             ; \
 		cd        $REMOTE_HOST_ACTIVE_BUILD_LINK                                    ; \
-		./run"
+		HOST=\"$REMOTE_HOST\" ENV=\"$ENV\" TARGET=\"$TARGET\" ./run"
 
 	echo -e " -- -- deployed to $REMOTE_HOST\n" 1>&2
 done

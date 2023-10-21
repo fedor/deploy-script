@@ -1,2 +1,0 @@
-REMOTE_HOSTS="root@prod1.host root@prod2.host"
-HTTP_PORT=8081

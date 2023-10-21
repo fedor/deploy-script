@@ -1,0 +1,23 @@
+#!/bin/bash
+echo -e "RUN ON REMOTE $(uname -a)\n$(whoami)@$(pwd)"
+
+source ./env 2> /dev/null
+USER=$(whoami)
+if [[ "$USER" != "root" ]]
+then
+	echo "Re-run the script as root..."
+	sudo -S ./run
+fi
+
+systemctl --user --machine=$APP_USER@ status ${SYSTEMD_SERVICES[*]} ${SYSTEMD_SOCKETS[*]}
+systemctl --user --machine=$APP_USER@ stop ${SYSTEMD_SOCKETS[*]}
+systemctl --user --machine=$APP_USER@ stop ${SYSTEMD_SERVICES[*]}
+# set -e
+systemctl --user --machine=$APP_USER@ disable ${SYSTEMD_SOCKETS[*]}
+systemctl --user --machine=$APP_USER@ disable ${SYSTEMD_SERVICES[*]}
+# set +e
+systemctl --user --machine=$APP_USER@ status ${SYSTEMD_SERVICES[*]} ${SYSTEMD_SOCKETS[*]}
+set -e
+userdel --force --remove $APP_USER
+set +e
+echo "removed user $APP_USER"

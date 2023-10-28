@@ -11,14 +11,14 @@
 #    - TARGET_SSH_PATH
 #    - NODEJS_VERSION         - Node.JS vesion required by the app
 #    - TARGET_SYSTEMD_PATH    - path for systemd config files
-#    - SYSTEMD_SERVICE_APP - systemd service config file name
-#    - SYSTEMD_SOCKET_APP  - systemd socket config file name
+#    - SYSTEMD_APP_SERVICE - systemd service config file name
+#    - SYSTEMD_APP_SOCKET  - systemd socket config file name
 #
 # Defined in deploy-config.$ENV:
-# - PORT_APP
+# - APP_PORT
 # - NODEJS_VERSION
-# - SYSTEMD_SERVICE_APP
-# - SYSTEMD_SOCKET_APP
+# - SYSTEMD_APP_SERVICE
+# - SYSTEMD_APP_SOCKET
 
 # STEP 1. Generate SSH key-pair on a build host (the machine + user running this script)
 mkdir ~/.ssh 2> /dev/null
@@ -30,23 +30,23 @@ popd > /dev/null
 cp ~/.ssh/id_rsa.pub authorized_keys
 
 # STEP 3. Generate a systemd socket config for the app
-cat > $SYSTEMD_SOCKET_APP <<- EOM
+cat > $SYSTEMD_APP_SOCKET <<- EOM
 [Unit]
 Description=Example app service socket (ENV: $ENV)
 
 [Socket]
-ListenStream=127.0.0.1:$PORT_APP
+ListenStream=127.0.0.1:$APP_PORT
 
 [Install]
 WantedBy=sockets.target
 EOM
 
 # STEP 4. Generate a systemd service config for the app
-cat > $SYSTEMD_SERVICE_APP <<- EOM
+cat > $SYSTEMD_APP_SERVICE <<- EOM
 [Unit]
 Description=Example app description (ENV: $ENV)
 After=network.target
-Requires=$SYSTEMD_SOCKET_APP
+Requires=$SYSTEMD_APP_SOCKET
 
 [Service]
 WorkingDirectory=/home/$APP_USER/deployments/$ENV/$APP/active
@@ -62,6 +62,6 @@ EOM
 cat > 'env' <<- EOM
 APP_USER=$APP_USER
 NODEJS_VERSION=$NODEJS_VERSION
-SYSTEMD_SERVICE_APP=$SYSTEMD_SERVICE_APP
-SYSTEMD_SOCKET_APP=$SYSTEMD_SOCKET_APP
+SYSTEMD_APP_SERVICE=$SYSTEMD_APP_SERVICE
+SYSTEMD_APP_SOCKET=$SYSTEMD_APP_SOCKET
 EOM

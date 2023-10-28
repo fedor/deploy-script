@@ -1,0 +1,2 @@
+REMOTE_HOSTS=(root@127.0.0.1)
+GIT_BRANCH=dev

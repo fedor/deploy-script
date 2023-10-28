@@ -1,6 +1,8 @@
 #!/bin/bash
 echo -e "\tRUN ON REMOTE $(uname -a)\n\t$(whoami):$(pwd)"
 
+mkdir -p /home/$(whoami)/data/$ENV/postgresql
+
 SYSTEMD_SERVICE=$(ls *.service)
 echo -e "\tSYSTEMD_SERVICE=$SYSTEMD_SERVICE"
 

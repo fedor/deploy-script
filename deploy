@@ -23,7 +23,9 @@ fi
 BUILD_HOST_BASE_DIR=$(realpath $(dirname "$0"))
 if [[ "$(ls $BUILD_HOST_BASE_DIR/deploy-targets | grep $TARGET)" != "$TARGET" ]]
 then
-	echo "$TARGET not found in deploy-targets" 1>&2
+	echo -e "\"$TARGET\" not found in deploy-targets\n" 1>&2
+	echo "-- List of targets:"
+	ls -1 deploy-targets | grep --invert-match env-build-host
 	exit 1
 fi
 

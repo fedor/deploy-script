@@ -1,25 +1,24 @@
 #!/bin/bash
+echo -e "\tRUN ON REMOTE $(uname -a)\n\t$(whoami):$(pwd)"
+
+if [[ "$(whoami)" != "root" ]]
+then
+	echo -e "\tre-run the script as root..."
+	sudo -S ./run
+fi
+
 source ./env 2> /dev/null
 TARGET_SSH_PATH=/home/$APP_USER/.ssh
 TARGET_SYSTEMD_PATH=/home/$APP_USER/.config/systemd/user
-
-echo -e "RUN ON REMOTE $(uname -a)\n$(whoami)@$(pwd)"
-
-USER=$(whoami)
-if [[ "$USER" != "root" ]]
-then
-	echo "Re-run the script as root..."
-	sudo -S ./run
-fi
 
 # TODO: Install/update software by root
 apt-get install -y dbus-user-session fuse-overlayfs slirp4netns docker-ce-rootless-extras
 
 # Add new user for target service
-adduser -gecos "" --disabled-password $APP_USER  2> /dev/null
+adduser -gecos "" --disabled-password $APP_USER 2> /dev/null
 
 # Setup access to remote host over SSH
-mkdir $TARGET_SSH_PATH                              2> /dev/null
+mkdir $TARGET_SSH_PATH 2> /dev/null
 cp authorized_keys $TARGET_SSH_PATH
 chown -R $APP_USER:$APP_USER $TARGET_SSH_PATH
 chmod -R 700 $TARGET_SSH_PATH
@@ -28,8 +27,8 @@ chmod -R 600 $TARGET_SSH_PATH/authorized_keys
 ####################
 # Copy systemd service and socket configs
 mkdir -p $TARGET_SYSTEMD_PATH
-cp ./$SYSTEMD_SERVICE_APP $TARGET_SYSTEMD_PATH
-cp ./$SYSTEMD_SOCKET_APP  $TARGET_SYSTEMD_PATH
+cp ./$SYSTEMD_APP_SERVICE $TARGET_SYSTEMD_PATH
+cp ./$SYSTEMD_APP_SOCKET  $TARGET_SYSTEMD_PATH
 chown -R $APP_USER:$APP_USER /home/$APP_USER/.config
 
 # This is required to start/run systemd service/socket of $APP_USER even they are not logged in
@@ -48,19 +47,19 @@ su - $APP_USER bash -c "\
 set +e
 
 # Disable systemd socket and service (if any)
-systemctl --user --machine=$APP_USER@ disable $SYSTEMD_SOCKET_APP
-systemctl --user --machine=$APP_USER@ disable $SYSTEMD_SERVICE_APP
+systemctl --user --machine=$APP_USER@ disable $SYSTEMD_APP_SOCKET
+systemctl --user --machine=$APP_USER@ disable $SYSTEMD_APP_SERVICE
 
 # Stop running socket and service (if any)
-systemctl --user --machine=$APP_USER@ stop   $SYSTEMD_SOCKET_APP
-systemctl --user --machine=$APP_USER@ stop   $SYSTEMD_SERVICE_APP
+systemctl --user --machine=$APP_USER@ stop   $SYSTEMD_APP_SOCKET
+systemctl --user --machine=$APP_USER@ stop   $SYSTEMD_APP_SERVICE
 
 # Enable systemd socket and service
-systemctl --user --machine=$APP_USER@ enable $SYSTEMD_SOCKET_APP
-systemctl --user --machine=$APP_USER@ enable $SYSTEMD_SERVICE_APP
+systemctl --user --machine=$APP_USER@ enable $SYSTEMD_APP_SOCKET
+systemctl --user --machine=$APP_USER@ enable $SYSTEMD_APP_SERVICE
 
 # Start socket again to use the new config
-systemctl --user --machine=$APP_USER@ start  $SYSTEMD_SOCKET_APP
+systemctl --user --machine=$APP_USER@ start  $SYSTEMD_APP_SOCKET
 
 # Print systemd socket/service status
-systemctl --user --machine=$APP_USER@ status $SYSTEMD_SERVICE_APP $SYSTEMD_SOCKET_APP
+systemctl --user --machine=$APP_USER@ status $SYSTEMD_APP_SERVICE $SYSTEMD_APP_SOCKET

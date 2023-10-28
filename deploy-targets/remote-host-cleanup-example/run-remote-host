@@ -1,13 +1,13 @@
 #!/bin/bash
-echo -e "RUN ON REMOTE $(uname -a)\n$(whoami)@$(pwd)"
+echo -e "\tRUN ON REMOTE $(uname -a)\n\t$(whoami):$(pwd)"
 
-source ./env 2> /dev/null
-USER=$(whoami)
-if [[ "$USER" != "root" ]]
+if [[ "$(whoami)" != "root" ]]
 then
-	echo "Re-run the script as root..."
+	echo -e "\tre-run the script as root..."
 	sudo -S ./run
 fi
+
+source ./env 2> /dev/null
 
 systemctl --user --machine=$APP_USER@ status ${SYSTEMD_SERVICES[*]} ${SYSTEMD_SOCKETS[*]}
 systemctl --user --machine=$APP_USER@ stop ${SYSTEMD_SOCKETS[*]}

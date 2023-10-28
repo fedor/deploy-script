@@ -1,8 +1,7 @@
 #!/bin/bash
 # This script prepares systemd service configuration to run $TARGET on remote hosts
 
-# ExecStartPre=/usr/bin/docker pull memcached:1-alpine
-cat > $SYSTEMD_SERVICE_ADMINER <<- EOM
+cat > $SYSTEMD_ADMINER_SERVICE <<- EOM
 [Unit]
 Description=%n
 After=docker.service
@@ -11,9 +10,9 @@ Requires=docker.service
 [Service]
 ExecStartPre=-/usr/bin/docker exec %n stop
 ExecStartPre=-/usr/bin/docker rm %n
-ExecStart=/usr/bin/docker run --rm --name %n --network=host adminer:4 php -S [::]:$PORT_ADMINER -t /var/www/html
+ExecStart=/usr/bin/docker run --rm --name %n --network=host adminer:4 php -S [::]:$ADMINER_PORT -t /var/www/html
 Type=exec
-Restart=always
+Restart=no
 
 [Install]
 WantedBy=default.target

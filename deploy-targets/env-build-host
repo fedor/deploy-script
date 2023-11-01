@@ -1,3 +1,4 @@
+ENVS=(dev prod)
 NODEJS_VERSION=v18.17.1
 APP=app-example
 APP_USER=$APP-$ENV

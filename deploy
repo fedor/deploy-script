@@ -13,19 +13,78 @@
 # 5. Run run-remote-host script copy on each remote host (work dir is set to the build dir copy on remote host)
 # 6. Remove .env file from the build directory on the build host
 
+BUILD_HOST_BASE_DIR=$(realpath $(dirname "$0")) 
+source $BUILD_HOST_BASE_DIR/deploy-targets/env-build-host 2> /dev/null # sets ENVS
+
+TARGETS=($(ls -1 $BUILD_HOST_BASE_DIR/deploy-targets | grep --invert-match env-build-host))
 # Input validation
-if [[ "$ENV" == "" || "$TARGET" == "" ]]
-then
-	echo "ENV and TARGET environmant variables must be set to run deploy script"
+if [[ "$ENV" == "" || "$TARGET" == "" ]] then
+	if [[ "$ENV" == "" ]] then
+		ENV=$(whiptail --clear --title "Select environment" --noitem --menu "Choose an option" 0 0 0 $(printf "%s noitem " "${ENVS[@]}") 3>&1 1>&2 2>&3)
+		if [[ $? != 0 ]] then
+			echo "Cancelled by user"
+			exit 1
+		fi
+	fi
+
+	ACTIONS=("Deploy" "noitem" "List active deployments" "noitem")
+	ACTION=$(whiptail --clear --title "Select action" --noitem --menu "Choose an option" 0 0 0 "${ACTIONS[@]}" 3>&1 1>&2 2>&3)
+	if [[ $? != 0 ]] then
+		echo "Cancelled by user"
+		exit 1
+	fi
+
+	if [[ "$ACTION" == "List active deployments" ]] then
+		# TODO: run ssh commands below using GNU parallel
+		TABLE=""
+		for TARGET in "${TARGETS[@]}"; do
+			REMOTE_HOSTS=()
+			source $BUILD_HOST_BASE_DIR/deploy-targets/env-build-host                      2> /dev/null
+			source $BUILD_HOST_BASE_DIR/deploy-targets/env-build-host-secrets              2> /dev/null
+			source $BUILD_HOST_BASE_DIR/deploy-targets/env-build-host.$ENV                 2> /dev/null
+			source $BUILD_HOST_BASE_DIR/deploy-targets/env-build-host-secrets.$ENV         2> /dev/null
+			source $BUILD_HOST_BASE_DIR/deploy-targets/$TARGET/env-build-host              2> /dev/null
+			source $BUILD_HOST_BASE_DIR/deploy-targets/$TARGET/env-build-host-secrets      2> /dev/null
+			source $BUILD_HOST_BASE_DIR/deploy-targets/$TARGET/env-build-host.$ENV         2> /dev/null
+			source $BUILD_HOST_BASE_DIR/deploy-targets/$TARGET/env-build-host-secrets.$ENV 2> /dev/null
+
+			REMOTE_HOST_ACTIVE_BUILD_LINK="~/deployments/$ENV/$TARGET/active"
+			for REMOTE_HOST in "${REMOTE_HOSTS[@]}"; do
+				BUILD=$(basename $(ssh $REMOTE_HOST "readlink -e $REMOTE_HOST_ACTIVE_BUILD_LINK") 2> /dev/null)
+				if [[ "$TABLE" != "" ]] then
+					TABLE+="\n"
+				fi
+				TABLE+="$ENV,$TARGET,$REMOTE_HOST,$BUILD"
+			done
+		done
+		echo -e $TABLE | column -t -s',' --table-columns ENV,TARGET,HOST,BUILD
+		exit 0
+	fi
+
+	if [[ "$TARGET" == "" ]] then
+		TARGET=$(whiptail --clear --title "Select deploy target for $ENV env." --noitem --menu "Choose an option" 0 0 0 $(printf "%s noitem " "${TARGETS[@]}") 3>&1 1>&2 2>&3)
+		if [[ $? != 0 ]] then
+			echo "Cancelled by user"
+			exit 1
+		fi
+	fi
+
+	echo "ENV selected    = $ENV"
+	echo "ACTION selected = $ACTION"
+	echo "TARGET selected = $TARGET"
+fi
+
+if [[ ! " ${ENVS[*]} " =~ " $ENV " ]] then
+	echo -e "\"$ENV\" not found in ENVS\n" 1>&2
+	echo "-- List of ENVS:"
+	printf "\t%s\n" "${ENVS[@]}"
 	exit 1
 fi
 
-BUILD_HOST_BASE_DIR=$(realpath $(dirname "$0"))
-if [[ "$(ls $BUILD_HOST_BASE_DIR/deploy-targets | grep $TARGET)" != "$TARGET" ]]
-then
+if [[ ! " ${TARGETS[*]} " =~ " $TARGET " ]] then
 	echo -e "\"$TARGET\" not found in deploy-targets\n" 1>&2
 	echo "-- List of targets:"
-	ls -1 deploy-targets | grep --invert-match env-build-host
+	printf "\t%s\n" "${TARGETS[@]}"
 	exit 1
 fi
 

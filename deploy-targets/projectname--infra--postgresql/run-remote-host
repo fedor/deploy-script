@@ -1,0 +1,14 @@
+#!/bin/bash
+source ./deploy-utils.sh
+mkdir -p /home/$(whoami)/data/$ENV/$TARGET
+deploy_utils__systemd_nonroot__enable_rootless_docker
+if 	
+	[[ "$FORCE" != "" ]] \
+	|| deploy_utils__systemd_nonroot_unit__is_outdated_or_not_active \
+	|| deploy_utils__is_file_diff ./.env ../prev_active/.env;
+then
+	deploy_utils__systemd_nonroot_unit__load_enable_restart
+	exit 0
+fi
+
+exit 1

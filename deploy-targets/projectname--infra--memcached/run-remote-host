@@ -1,0 +1,12 @@
+#!/bin/bash
+source ./deploy-utils.sh
+deploy_utils__systemd_nonroot__enable_rootless_docker
+if 	
+	[[ "$FORCE" != "" ]] \
+	|| deploy_utils__systemd_nonroot_unit__is_outdated_or_not_active;
+then
+	deploy_utils__systemd_nonroot_unit__load_enable_restart
+	exit 0
+fi
+
+exit 1

@@ -1,0 +1,27 @@
+#!/bin/bash
+source ./deploy-utils.sh
+source ./env.sh
+deploy_utils__rerun_script_as_root
+
+# Disable and stop services
+systemctl --user --machine=$PROJECT_USER@ disable --now $ENV.projectname--app.socket
+systemctl --user --machine=$PROJECT_USER@ disable --now $ENV.projectname--app.service
+systemctl --user --machine=$PROJECT_USER@ disable --now $ENV.projectname--infra--memcached.service
+systemctl --user --machine=$PROJECT_USER@ disable --now $ENV.projectname--infra--postgresql.service
+systemctl disable --now $ENV.projectname--wordpress.service
+systemctl --user --machine=$PROJECT_USER@ disable --now $ENV.projectname--wordpress--infra--mariadb.service
+systemctl --user --machine=$PROJECT_USER@ disable --now docker.service
+
+# Print each service status
+systemctl --user --machine=$PROJECT_USER@ status $ENV.projectname--app.socket
+systemctl --user --machine=$PROJECT_USER@ status $ENV.projectname--app.service
+systemctl --user --machine=$PROJECT_USER@ status $ENV.projectname--infra--memcached.service
+systemctl --user --machine=$PROJECT_USER@ status $ENV.projectname--infra--postgresql.service
+systemctl status $ENV.projectname--wordpress.service
+systemctl --user --machine=$PROJECT_USER@ status $ENV.projectname--wordpress--infra--mariadb.service
+
+set -e
+userdel --force --remove $PROJECT_USER
+set +e
+
+echo -e "\t\tremoved user $PROJECT_USER"

@@ -1,0 +1,9 @@
+#!/bin/bash
+# This script prepares files for remote hosts to perform deployment of a target app (remote hosts setup)
+source ./deploy-utils.sh
+deploy_utils__gen_ssh_key
+
+# Generate a file with shell environment variables for remote host setup script
+cat > 'env.sh' <<- EOM
+PROJECT_USER=$PROJECT_USER
+EOM

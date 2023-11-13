@@ -1,0 +1,12 @@
+#!/bin/bash
+source ./.env
+source ./deploy-utils.sh
+deploy_utils__rerun_script_as_root
+systemctl enable --now docker.service
+docker run --rm \
+	-v `pwd`/database-migrations:/migrations \
+	--network host \
+	migrate/migrate \
+	-path=/migrations/ \
+	-database $DATABASE \
+	$CMD

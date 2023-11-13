@@ -1,0 +1,14 @@
+#!/bin/bash
+source ./deploy-utils.sh
+deploy_utils__rerun_script_as_root
+if 	
+	[[ "$FORCE" != "" ]] \
+	|| deploy_utils__systemd_root_unit__is_outdated_or_not_active \
+	|| deploy_utils__is_file_diff ./.env ../prev_active/.env   \
+	|| deploy_utils__is_file_diff ./wordpress-docker-entrypoint.sh ../prev_active/wordpress-docker-entrypoint.sh;
+then
+	deploy_utils__systemd_root_unit__load_enable_restart
+	exit 0
+fi
+
+exit 1

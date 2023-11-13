@@ -1,0 +1,29 @@
+#!/bin/bash
+# This script prepares systemd service configuration to run $TARGET on remote hosts
+
+cat > .env <<- EOM
+MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+MYSQL_DATABASE=$MYSQL_DATABASE
+MYSQL_USER=$MYSQL_USER
+MYSQL_PASSWORD=$MYSQL_PASSWORD
+EOM
+
+DATA_PATH=/home/$PROJECT_USER/data/$ENV/$TARGET
+ENV_PATH=/home/$PROJECT_USER/deployments/$ENV/$TARGET/active/.env
+
+cat > $ENV.$TARGET.service <<- EOM
+[Unit]
+Description=%n
+After=docker.service
+Requires=docker.service
+
+[Service]
+ExecStartPre=-/usr/bin/docker exec %n stop
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStart=/usr/bin/docker run --rm --name %n --env-file $ENV_PATH -p $MARIADB_PORT:3306 -v $DATA_PATH:/var/lib/mysql mariadb:10.6
+Type=exec
+Restart=no
+
+[Install]
+WantedBy=default.target
+EOM

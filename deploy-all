@@ -1,0 +1,10 @@
+#!/bin/bash
+TARGET=projectname--hosts--setup ./deploy
+TARGET=projectname--wordpress--infra--mariadb ./deploy
+TARGET=projectname--wordpress                 ./deploy
+TARGET=projectname--infra--memcached                    ./deploy
+TARGET=projectname--infra--postgresql                   ./deploy
+echo -e "\nwaiting for 30s for postresql to start...\n"
+sleep 30
+TARGET=projectname--infra--postgresql--schema-migration ./deploy
+TARGET=projectname--app ./deploy

@@ -1,0 +1,5 @@
+#!/bin/bash
+source ./deploy-utils.sh
+source ./env.sh
+deploy_utils__rerun_script_as_root
+deploy_utils__create_user__copy_ssh_key__set_systemd_config_dir $PROJECT_USER

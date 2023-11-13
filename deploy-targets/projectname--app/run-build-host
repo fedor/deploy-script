@@ -1,0 +1,42 @@
+#!/bin/bash
+# This script installs dependencies, + prepares env file with shell variables for remote hosts script
+npm ci
+
+# Generate a file with shell environment variables for remote host setup script
+cat > 'env.sh' <<- EOM
+NODEJS_VERSION=$NODEJS_VERSION
+EOM
+
+# Generate a file with environment variables for the app
+cat > '.env' <<- EOM
+ENV=$ENV
+EOM
+
+# Generate a systemd socket config for the app
+cat > $ENV.$TARGET.socket <<- EOM
+[Unit]
+Description=%n
+
+[Socket]
+ListenStream=127.0.0.1:$APP_PORT
+
+[Install]
+WantedBy=sockets.target
+EOM
+
+# Generate a systemd service config for the app
+cat > $ENV.$TARGET.service <<- EOM
+[Unit]
+Description=%n
+After=network.target
+Requires=$ENV.$TARGET.socket
+
+[Service]
+WorkingDirectory=/home/$PROJECT_USER/deployments/$ENV/$TARGET/active
+ExecStart=/home/$PROJECT_USER/.nvm/versions/node/$NODEJS_VERSION/bin/node app-example.js --daemon
+Type=exec
+Restart=always
+
+[Install]
+WantedBy=default.target
+EOM

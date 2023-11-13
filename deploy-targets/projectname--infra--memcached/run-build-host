@@ -1,0 +1,20 @@
+#!/bin/bash
+# This script prepares systemd service configuration to run $TARGET on remote hosts
+
+# ExecStartPre=/usr/bin/docker pull memcached:1-alpine
+cat > $ENV.$TARGET.service <<- EOM
+[Unit]
+Description=%n
+After=docker.service
+Requires=docker.service
+
+[Service]
+ExecStartPre=-/usr/bin/docker exec %n stop
+ExecStartPre=-/usr/bin/docker rm %n
+ExecStart=/usr/bin/docker run --rm --name %n -p $MEMCACHED_PORT:11211 memcached:1-alpine
+Type=exec
+Restart=no
+
+[Install]
+WantedBy=default.target
+EOM

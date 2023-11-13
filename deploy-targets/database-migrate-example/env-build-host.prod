@@ -1,2 +1,0 @@
-REMOTE_HOSTS=(infra@prod1.host)
-GIT_BRANCH=master

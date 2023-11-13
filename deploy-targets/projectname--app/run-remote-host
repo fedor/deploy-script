@@ -1,0 +1,20 @@
+#!/bin/bash
+source ./deploy-utils.sh
+source ./env.sh
+
+if [[ ! -f ~/.nvm/versions/node/$NODEJS_VERSION/bin/node ]] then
+	echo -e "\t\tNode.js ver. $NODEJS_VERSION was not found, installing..."
+	wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash;
+	source ~/.bashrc;
+	export NVM_DIR="$HOME/.nvm";
+	[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"  # This loads nvm
+	nvm install $NODEJS_VERSION
+fi
+
+SOCKET=$(ls -1 *.socket)
+if deploy_utils__systemd_nonroot_unit__is_outdated_or_not_active $SOCKET; then
+	deploy_utils__systemd_nonroot_unit__load_enable_restart $SOCKET
+fi
+
+systemctl --user enable $SOCKET
+deploy_utils__systemd_nonroot_unit__load_enable_restart "$(ls -1 *.service)"

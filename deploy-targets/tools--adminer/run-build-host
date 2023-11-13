@@ -1,0 +1,18 @@
+#!/bin/bash
+# This script prepares systemd service configuration to run $TARGET on remote hosts
+
+cat > $ENV.$TARGET.service <<- EOM
+[Unit]
+Description=%n
+After=docker.service
+Requires=docker.service
+
+[Service]
+ExecStartPre=-/usr/bin/docker rm -fv %n
+ExecStart=/usr/bin/docker run --rm --name %n --network=host adminer:4 php -S [::]:$ADMINER_PORT -t /var/www/html
+Type=exec
+Restart=no
+
+[Install]
+WantedBy=default.target
+EOM
